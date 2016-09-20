@@ -1,4 +1,7 @@
 #coding:utf-8
+#Author: William Yang
+#Version: V1.0
+
 
 """
 Train tickets query via command line.
