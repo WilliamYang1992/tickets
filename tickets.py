@@ -1,13 +1,13 @@
 #coding:utf-8
 #Author: William Yang
-#Version: V1.1
+#Version: V0.35dev
 
 
-"""
+helpInfo = """
 Train tickets query via command line
 
 Usage:
-    tickets.py [-gdtkz] <from> <to> <date>
+    tickets.py [-gdtkz] [--lang=<en>] [--debug] <from> <to> <date>
     
 Options:
     -h --help 显示帮助菜单
@@ -16,14 +16,20 @@ Options:
     -t        特快
     -k        快速
     -z        直达
+    --lang:   选择语言, 可选cn或en
+    --debug   开启debug信息
     
 Example: tickets.py shanghai beijing 2016-10-01
+         tickets.py --lang en shanghai beijing 2016-10-01
          tickets.py 上海 北京 今天
+         --lang: en cn
          <form>, <to>: shanghai 上海 上hai BEIJING
          <date>: 2016-10-01 20161001 16-10-01 2016-10-1 jintian 今天
 """
 
+
 import os
+import sys
 import requests
 from termcolor import colored
 from docopt import docopt
@@ -40,17 +46,49 @@ from requests.packages.urllib3.exceptions import InsecureRequestWarning
 def cli():
     """Command line interface"""
     global debug         #显示debug信息
-    global detail        #显示车次详细信息
+    global detail        #显示返回的JSON信息
     global language      #语言选择
     
-    arguments = docopt(__doc__, help= True)
-    if debug:
-        print(arguments)
+    transOpt = []        #保存翻译后的参数
+
+    #显示帮助信息
+    if len(sys.argv) == 2:
+        if sys.argv[1] == "-h" or sys.argv[1] == "--help":
+            os.system("cls")
+            print(helpInfo)
+            sys.exit()
+
+    #获取命令行参数, 文本参数为"helpInfo", 并关闭默认帮助功能
+    arguments = docopt(helpInfo, help= False)
+
+    debug = arguments['--debug']
+    #help = arguments['-h']
+    language = arguments['--lang']
     from_station = stations.get(chinese2pinyin(arguments['<from>']))
     to_station = stations.get(chinese2pinyin(arguments['<to>']))
     date = formatDate(arguments['<date>'], "std")
     
-       
+    transOpt.append(from_station)
+    transOpt.append(to_station)
+    transOpt.append(date)
+
+    if not language is None:
+        language = language.upper()
+    else:
+        language = "cn"
+
+    if debug:
+        print(arguments)
+        print("from_station: {}".format(from_station))
+        print("to_station: {}".format(to_station))
+        print("date: {}".format(date))
+    
+    if language.upper() == "CN":
+        print("\n查询中, 请耐心等待...")
+    elif language.upper() == "EN":
+        print("\nQuerying, please be patient...")
+
+
     #12306网站查询余票url
     url = "https://kyfw.12306.cn/otn/leftTicket/queryT?leftTicketDTO.train_date={}&leftTicketDTO.from_station={}&leftTicketDTO.to_station={}&purpose_codes=ADULT".format(date, from_station, to_station)
     
@@ -58,20 +96,15 @@ def cli():
     requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
     r = requests.get(url, verify = False)
     
-    if language.upper() == "CN":
-        print("查询中, 请耐心等待...")
-    elif language.upper() == "EN":
-        print("Querying, please be patient...")
-    
     try:
         rows = r.json()['data']
-        if debug and detail:
+        if detail:
             pprint(rows)
         trains = TrainCollection(rows)
         if language == "CN":
             print("\n日期: {}  出发地: {}  目的站: {}".format(date, from_station, to_station))
         elif language == "EN":
-            print("\nDate: {}  From station: {}  To station: {}")
+            print("\nDate: {}  From station: {}  To station: {}".format(date, from_station, to_station))
         #打印列车信息
         trains.pretty_print()        
     except(KeyError):
@@ -81,9 +114,11 @@ def cli():
             print("\nCan not query, please query agian with correct conditions\n")
     except(Exception) as e:
         if language.upper() == "CN":
-            print("服务器出错, 无法查询")
+            print("服务器出错, 无法查询\n"
+                  "请稍后重新搜索\n")
         elif language.upper() == "EN":
-            print("Server error, can not be queried")
+            print("Server error, can not be queried\n"
+                  "Please query again later")
         if debug:
             print(e)
             
@@ -139,21 +174,21 @@ class TrainCollection():
                     
                     colored(info['station_train_code'], 'white', 'on_red'),
                     
-                    '\n'.join([info['from_station_name'], info['to_station_name']]),
+                    '\n'.join([colored(info['from_station_name'], 'red'), colored(info['to_station_name'], 'red')]),
                     
-                    '-', 
+                    colored('-', 'red'),
                     
-                    '-',
+                    colored('-', 'red'),
                     
-                    '-',
+                    colored('-', 'red'),
                     
-                    '-',
+                    colored('-', 'red'),
                     
-                    '-', 
+                    colored('-', 'red'),
                     
-                    '-', 
+                    colored('-', 'red'),
                     
-                    '-', 
+                    colored('-', 'red'),
                     
                    colored(info['controlled_train_message'], 'red'), 
                         
@@ -179,7 +214,7 @@ class TrainCollection():
                     
                     info['yz_num'],
                     
-                    '可预订', 
+                    colored('可预订', 'green'),
                     
                 ]
             #为保持整齐与美观, 尾行不用加多余空位
@@ -198,7 +233,7 @@ class TrainCollection():
                 print("\n没有查询到符合条件的车次信息, 请重新设定条件查询\n")
             elif language.upper() == "EN":
                 print("\nCan not find any train meet the specific conditions, "
-                      "please query again with apposite condition\n")
+                      "please query again with proper condition\n")
         else:
             if language.upper() == "CN":
                 print("\n共查询到 {} 车次, 详细信息如下:\n".format(self.trains_num))
@@ -207,7 +242,7 @@ class TrainCollection():
                     pt.add_row(train)
                 print(pt)
             elif language.upper() == "EN":
-                print("\nGet {} trains totally and the detail as follow:\n".format(self.trains_num))
+                print("\nGet {} trains totally and the details as follow:\n".format(self.trains_num))
                 #设置表头
                 pt = PrettyTable(self.header_EN)
                 #添加车次信息到每行数据里
@@ -221,9 +256,11 @@ if __name__ == '__main__':
     debug = False
     detail = False
     language = "CN"
-    init(autoreset= True)
+    init(autoreset= True)  #colorama初始化, 并设置自动还原
     if language.upper() == "CN":
-        print("12306网站火车余票查询工具 Python专版 V1.0\n")
+        print("\n12306网站火车余票查询工具 Python专版 V0.35dev\n"
+              "输入 -h 或 --help 获得帮助信息\n")
     elif language.upper() == "EN":
-        print("12306 website TRAIN TICKET QUERY TOOL based on Python V1.0\n")
+        print("\n12306 website TRAIN TICKET QUERY TOOL based on Python V0.35dev\n"
+              "Enter -h or --help get helpful message\n")
     cli()

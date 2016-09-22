@@ -4,7 +4,7 @@
 Author: WilliamYang
 Email: 505741310@qq.com
 Github: WilliamYang1992.github.com
-Version: 0.1dev
+Version: 0.2dev
 """
 
 import re
@@ -48,11 +48,12 @@ def formatDate(dateStr, formatMode = mode):
     try:
         if formatMode.upper() == "STD":
             dateObject = datetime.strptime(dateStr, pattern)
-            dateformatted = date.strftime("%Y-%m-%d")
+            dateformatted = dateObject.strftime("%Y-%m-%d")
         elif formatMode.upper() == "NO-SPLITER":
             dateObject = datetime.strptime(dateStr, pattern)
-            dateformatted = date.strftime("%Y%m%d")
+            dateformatted = dateObject.strftime("%Y%m%d")
     except(ValueError):
         raise ValueError("You have entered {} which is a wrong time!".format(dateStr))
     
     return dateformatted
+
