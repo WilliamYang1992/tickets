@@ -19,12 +19,13 @@ Options:
     --lang:   选择语言, 可选cn或en
     --debug   开启debug信息
     
-Example: tickets.py shanghai beijing 2016-10-01
-         tickets.py --lang en shanghai beijing 2016-10-01
-         tickets.py 上海 北京 今天
-         --lang: en cn
-         <form>, <to>: shanghai 上海 上hai BEIJING
-         <date>: 2016-10-01 20161001 16-10-01 2016-10-1 jintian 今天
+Example:
+    tickets.py shanghai beijing 2016-10-01
+    tickets.py --lang en shanghai beijing 2016-10-01
+    tickets.py 上海 北京 今天
+    --lang: en cn
+    <form>, <to>: shanghai 上海 上hai BEIJING
+    <date>: 2016-10-01 20161001 16-10-01 2016-10-1 jintian 今天
 """
 
 
