@@ -31,6 +31,7 @@ Example: tickets.py shanghai beijing 2016-10-01
 import os
 import sys
 import requests
+import xpinyin
 from termcolor import colored
 from docopt import docopt
 from pprint import pprint
@@ -62,7 +63,6 @@ def cli():
     arguments = docopt(helpInfo, help= False)
 
     debug = arguments['--debug']
-    #help = arguments['-h']
     language = arguments['--lang']
     from_station = stations.get(chinese2pinyin(arguments['<from>']))
     to_station = stations.get(chinese2pinyin(arguments['<to>']))
@@ -79,9 +79,9 @@ def cli():
 
     if debug:
         print(arguments)
-        print("from_station: {}".format(from_station))
-        print("to_station: {}".format(to_station))
-        print("date: {}".format(date))
+        print("from_station: {}".format(transOpt[0]))
+        print("to_station: {}".format(transOpt[1]))
+        print("date: {}".format(transOpt[2]))
     
     if language.upper() == "CN":
         print("\n查询中, 请耐心等待...")
@@ -94,6 +94,7 @@ def cli():
     
     #取消不安全连接的警告
     requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
+    #发出查询请求, 返回JSON格式的车次信息
     r = requests.get(url, verify = False)
     
     try:
