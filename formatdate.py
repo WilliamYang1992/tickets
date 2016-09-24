@@ -4,7 +4,7 @@
 Author: WilliamYang
 Email: 505741310@qq.com
 Github: WilliamYang1992.github.com
-Version: 0.2dev
+Version: 0.2.3dev
 """
 
 import re
@@ -56,8 +56,13 @@ def formatDate(dateStr, formatMode = mode):
         elif formatMode.upper() == "NO-SPLITER":
             dateObject = datetime.strptime(dateStr, pattern)
             dateformatted = dateObject.strftime("%Y%m%d")
+        elif formatMode.upper() == "NO_CENTURY":
+            dateObject = datetime.strptime(dateStr, pattern)
+            dateformatted = dateObject.strftime("%y-%m-%d")
+        elif formatMode.upper() == "NO_CENTURY_SPLITER":
+            dateObject = datetime.strptime(dateStr, pattern)
+            dateformatted = dateObject.strftime("%y%m%d")
     except(ValueError):
         raise ValueError("You have entered {} which is a wrong time!".format(dateStr))
     
     return dateformatted
-
