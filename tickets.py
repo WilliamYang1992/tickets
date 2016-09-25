@@ -7,12 +7,13 @@ helpInfo = """
 Train tickets query via command line
 
 Usage:
-    tickets.py [-gdtkz] [--lang=<en>] [--debug] <from> <to> <date>
+    tickets.py [-gdctkz] [--lang=<en>] [--debug] <from> <to> <date>
     
 Options:
     -h --help 显示帮助菜单
     -g        高铁
     -d        动车
+    -c        城际
     -t        特快
     -k        快速
     -z        直达
@@ -30,6 +31,7 @@ Example:
 
 
 import os
+import re
 import sys
 import requests
 import xpinyin
@@ -38,7 +40,7 @@ from docopt import docopt
 from pprint import pprint
 from colorama import init
 from xpinyin import Pinyin
-from stations import stations
+from stations import station_pinyin, station_chinese
 from formatdate import formatDate
 from prettytable import PrettyTable
 #导入该模块, 可以关闭不安全连接的警告
@@ -51,7 +53,8 @@ def cli():
     global detail        #显示返回的JSON信息
     global language      #语言选择
     
-    transOpt = []        #保存翻译后的参数
+    transOpt = []        #保存转换后的参数
+    typeOfTrainToDisplay = []    #保存需要显示的车次类型
 
     #显示帮助信息
     if len(sys.argv) == 2:
@@ -65,9 +68,25 @@ def cli():
 
     debug = arguments['--debug']
     language = arguments['--lang']
-    from_station = stations.get(chinese2pinyin(arguments['<from>']))
-    to_station = stations.get(chinese2pinyin(arguments['<to>']))
+    from_station = station_pinyin.get(chinese2pinyin(arguments['<from>']))
+    to_station = station_pinyin.get(chinese2pinyin(arguments['<to>']))
     date = formatDate(arguments['<date>'], "std")
+    
+    gaotie = arguments['-g']        #高铁选项
+    dongche = arguments['-d']       #动车选项
+    chengji = arguments['-c']         #城际选项
+    tekuai = arguments['-t']        #特快选项
+    kuaisu = arguments['-k']        #快速选项
+    zhida = arguments['-z']         #直达选项
+    
+    #判断需要显示的列车类型, 传递到TrainCollection类进行筛选
+    if gaotie == True:typeOfTrainToDisplay.append('G')
+    if dongche == True:typeOfTrainToDisplay.append('D')
+    if chengji == True:typeOfTrainToDisplay.append('C')
+    if tekuai == True:typeOfTrainToDisplay.append('T')
+    if kuaisu == True:typeOfTrainToDisplay.append('K')
+    if zhida == True:typeOfTrainToDisplay.append('Z')
+    
     
     transOpt.append(from_station)
     transOpt.append(to_station)
@@ -100,12 +119,13 @@ def cli():
     
     try:
         rows = r.json()['data']
+        #当detail为True时, 打印返回的JSON数据
         if detail:
             pprint(rows)
-        trains = TrainCollection(rows)
-        if language == "CN":
-            print("\n日期: {}  出发地: {}  目的站: {}".format(date, from_station, to_station))
-        elif language == "EN":
+        trains = TrainCollection(rows, typeOfTrainToDisplay)
+        if language.upper()  == "CN":
+            print("\n日期: {}  出发地: {}  目的站: {}".format(date, station_chinese.get(from_station), station_chinese.get(to_station)))
+        elif language.upper() == "EN":
             print("\nDate: {}  From station: {}  To station: {}".format(date, from_station, to_station))
         #打印列车信息
         trains.pretty_print()        
@@ -141,16 +161,17 @@ class TrainCollection():
     header_CN = "车次 站点 时间 历时 一等座 二等座 软卧 硬卧 硬座 备注".split()
     
     
-    def __init__(self, rows):
+    def __init__(self, rows, typeOfTrainToDisplay):
         self.rows = rows
         self.trains_num = self._get_train_count(self.rows)
+        self.regexOfTrain = self._getTypeOfTrainToDisplay(typeOfTrainToDisplay)
         
         
     def _get_duration(self, row):
         """获取车次运行时间"""
         duration = row.get('lishi').replace(":", 'h') + 'm'
         
-        #格式化时间
+        #格式化"历时"时间格式
         if duration.startswith('00'):
             return duration[3:]
         if duration.startswith('0'):
@@ -164,61 +185,78 @@ class TrainCollection():
         return count
     
     
+    def _getTypeOfTrainToDisplay(self, typeOfTrainToDisplay):
+        temp = ""
+        pattern = r"^[{}].*$"  #创建只含有需要显示的车次类型的正则表达式
+        for i in typeOfTrainToDisplay:
+            temp += i
+        if not temp == "":
+            return pattern.format(temp)
+        else:
+            #如果没有指定车次类型, 则返回可以匹配所有车次类型的正则表达式
+            return pattern.replace("[{}]", "")
+    
+    
     @property
     def trains(self):
         index = 0  #记录循环中当前车次序号, 最后一列车次不加空行
         for row in self.rows:
             #列车信息在'queryLeftNewDTO'字典对应的值里面
             info = row['queryLeftNewDTO']
-            #如果'controlled_train_flag'不为0, 代表该车次因故停运
-            if not info['controlled_train_flag'] == '0':
-                train = [
-                    
-                    colored(info['station_train_code'], 'white', 'on_red'),
-                    
-                    '\n'.join([colored(info['from_station_name'], 'red'), colored(info['to_station_name'], 'red')]),
-                    
-                    colored('-', 'red'),
-                    
-                    colored('-', 'red'),
-                    
-                    colored('-', 'red'),
-                    
-                    colored('-', 'red'),
-                    
-                    colored('-', 'red'),
-                    
-                    colored('-', 'red'),
-                    
-                    colored('-', 'red'),
-                    
-                   colored(info['controlled_train_message'], 'red'), 
+            #判断每一个车次是否在指定需要显示的车次类型列表内
+            if re.match(self.regexOfTrain, info['station_train_code']):
+                #如果'controlled_train_flag'不为0, 代表该车次因故停运
+                if not info['controlled_train_flag'] == '0':
+                    train = [
                         
-                ]
+                        colored(info['station_train_code'], 'white', 'on_red'),
+                        
+                        '\n'.join([colored(info['from_station_name'], 'red'), colored(info['to_station_name'], 'red')]),
+                        
+                        colored('-', 'red'),
+                        
+                        colored('-', 'red'),
+                        
+                        colored('-', 'red'),
+                        
+                        colored('-', 'red'),
+                        
+                        colored('-', 'red'),
+                        
+                        colored('-', 'red'),
+                        
+                        colored('-', 'red'),
+                        
+                       colored(info['controlled_train_message'], 'red'), 
+                            
+                    ]
+                else:
+                    train = [
+                        
+                        colored(info['station_train_code'], 'blue', 'on_green'),
+                        
+                        '\n'.join([colored(info['from_station_name'], 'green'), colored(info['to_station_name'], 'yellow')]),
+                        
+                        '\n'.join([colored(info['start_time'], 'green'), colored(info['arrive_time'], 'yellow')]),
+                        
+                        self._get_duration(info),
+                        
+                        info['zy_num'],
+                        
+                        info['ze_num'],
+                        
+                        info['rw_num'],
+                        
+                        info['yw_num'],
+                        
+                        info['yz_num'],
+                        
+                        colored('可预订', 'green'),
+                        
+                    ]
             else:
-                train = [
-                    
-                    colored(info['station_train_code'], 'blue', 'on_green'),
-                    
-                    '\n'.join([colored(info['from_station_name'], 'green'), colored(info['to_station_name'], 'yellow')]),
-                    
-                    '\n'.join([colored(info['start_time'], 'green'), colored(info['arrive_time'], 'yellow')]),
-                    
-                    self._get_duration(info),
-                    
-                    info['zy_num'],
-                    
-                    info['ze_num'],
-                    
-                    info['rw_num'],
-                    
-                    info['yw_num'],
-                    
-                    info['yz_num'],
-                    
-                    colored('可预订', 'green'),
-                    
-                ]
+                #如果车次类型不在指定列表里, 则不显示
+                continue
             #为保持整齐与美观, 尾行不用加多余空位
             if not index == self.trains_num - 1:
                 train[0] += '\n\n'
