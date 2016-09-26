@@ -8,6 +8,7 @@ Version: 0.2.3dev
 """
 
 import re
+from time import time
 from datetime import date
 from datetime import datetime
 
@@ -22,13 +23,20 @@ formatStr = ["%Y-%m-%d", "%Y%m%d", "%Y%m-%d", "%Y-%m%d",
              "%y-%m-%d", "%y%m%d", "%y%m-%d", "%y-%m%d", ]
 
 todayDict = ["", "TODAY", "JINTIAN", "JINRI", "今天", "今日", ]
-
+tomorrowDict = ["TOMORROW", "MINGTIAN", "MINGRI", "明天", "明日"]
+theDayAfterTomorrowDict = ["THEDAYAFTERTOMORROW", "HOUTIAN", "HOURI", "后天", "后日"]
 
 def formatDate(dateStr, formatMode = mode):
     pattern = "%Y-%m-%d"
     
     if dateStr.upper() in todayDict:
         return date.today()
+    if dateStr.upper() in tomorrowDict:
+        dateObject = date.fromtimestamp(time() + 86400)
+        return dateObject
+    if dateStr.upper() in theDayAfterTomorrowDict:
+        dateObject = date.fromtimestamp(time() + 86400 * 2)
+        return dateObject
     
     if re.match("^[12][09]\d{2}-\d{1,2}-\d{1,2}$", dateStr):
         pattern = formatStr[0]

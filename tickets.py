@@ -24,9 +24,9 @@ Example:
     tickets.py shanghai beijing 2016-10-01
     tickets.py --lang en shanghai beijing 2016-10-01
     tickets.py 上海 北京 今天
-    --lang: en cn
     <form>, <to>: shanghai 上海 上hai BEIJING
     <date>: 2016-10-01 20161001 16-10-01 2016-10-1 jintian 今天
+            mingtian 明天 houtian 后天
 """
 
 
@@ -35,12 +35,12 @@ import re
 import sys
 import requests
 import xpinyin
-from termcolor import colored
+from stations import *
 from docopt import docopt
 from pprint import pprint
 from colorama import init
 from xpinyin import Pinyin
-from stations import station_pinyin, station_chinese
+from termcolor import colored
 from formatdate import formatDate
 from prettytable import PrettyTable
 #导入该模块, 可以关闭不安全连接的警告
@@ -68,8 +68,8 @@ def cli():
 
     debug = arguments['--debug']
     language = arguments['--lang']
-    from_station = station_pinyin.get(chinese2pinyin(arguments['<from>']))
-    to_station = station_pinyin.get(chinese2pinyin(arguments['<to>']))
+    from_station = stations_pinyin_telecode.get(chinese2pinyin(arguments['<from>']))
+    to_station = stations_pinyin_telecode.get(chinese2pinyin(arguments['<to>']))
     date = formatDate(arguments['<date>'], "std")
     
     gaotie = arguments['-g']        #高铁选项
@@ -124,9 +124,11 @@ def cli():
             pprint(rows)
         trains = TrainCollection(rows, typeOfTrainToDisplay)
         if language.upper()  == "CN":
-            print("\n日期: {}  出发地: {}  目的站: {}".format(date, station_chinese.get(from_station), station_chinese.get(to_station)))
+            print("\n日期: {}  出发地: {}  目的站: {}".format(date, stations_telecode_chinese.get(from_station),
+                stations_telecode_chinese.get(to_station)))
         elif language.upper() == "EN":
-            print("\nDate: {}  From station: {}  To station: {}".format(date, from_station, to_station))
+            print("\nDate: {}  From station: {}  To station: {}".format(date,
+                stations_telecode_pinyin.get(from_station), stations_telecode_pinyin.get(to_station)))
         #打印列车信息
         trains.pretty_print()        
     except(KeyError):
